@@ -113,6 +113,12 @@ func (c *VerifyBlobAttestationCommand) Exec(ctx context.Context, artifactPath st
 		}
 	}
 
+	trustedMaterial, _ := cosign.TrustedRoot()
+	if trustedMaterial != nil && options.NOf(c.CertChain, c.CARoots, c.CAIntermediates) > 0 {
+		// trusted_root.json was found, but a cert chain was explicitly provided, so don't overrule the user's intentions.
+		trustedMaterial = nil
+	}
+
 	co := &cosign.CheckOpts{
 		Identities:                   identities,
 		CertGithubWorkflowTrigger:    c.CertGithubWorkflowTrigger,
@@ -123,6 +129,7 @@ func (c *VerifyBlobAttestationCommand) Exec(ctx context.Context, artifactPath st
 		IgnoreSCT:                    c.IgnoreSCT,
 		Offline:                      c.Offline,
 		IgnoreTlog:                   c.IgnoreTlog,
+		TrustedMaterial:              trustedMaterial,
 	}
 	var h v1.Hash
 	if c.CheckClaims {
@@ -191,7 +198,7 @@ func (c *VerifyBlobAttestationCommand) Exec(ctx context.Context, artifactPath st
 	}
 
 	// Ignore Signed Certificate Timestamp if the flag is set or a key is provided
-	if shouldVerifySCT(c.IgnoreSCT, c.KeyRef, c.Sk) {
+	if co.TrustedMaterial == nil && shouldVerifySCT(c.IgnoreSCT, c.KeyRef, c.Sk) {
 		co.CTLogPubKeys, err = cosign.GetCTLogPubs(ctx)
 		if err != nil {
 			return fmt.Errorf("getting ctlog public keys: %w", err)

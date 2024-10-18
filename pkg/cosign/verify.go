@@ -65,6 +65,8 @@ import (
 	intoto_v001 "github.com/sigstore/rekor/pkg/types/intoto/v0.0.1"
 	intoto_v002 "github.com/sigstore/rekor/pkg/types/intoto/v0.0.2"
 	rekord_v001 "github.com/sigstore/rekor/pkg/types/rekord/v0.0.1"
+	"github.com/sigstore/sigstore-go/pkg/root"
+	"github.com/sigstore/sigstore-go/pkg/verify"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
 	"github.com/sigstore/sigstore/pkg/signature/dsse"
@@ -93,6 +95,9 @@ type CheckOpts struct {
 
 	// ClaimVerifier, if provided, verifies claims present in the oci.Signature.
 	ClaimVerifier func(sig oci.Signature, imageDigest v1.Hash, annotations map[string]interface{}) error
+
+	// TrustedMaterial contains trusted metadata for all Sigstore services. It is exclusive with RekorPubKeys, RootCerts, IntermediateCerts, CTLogPubKeys, and the TSA* cert fields.
+	TrustedMaterial root.TrustedMaterial
 
 	// RekorClient, if set, is used to make online tlog calls use to verify signatures and public keys.
 	RekorClient *client.Rekor
@@ -272,6 +277,12 @@ func ValidateAndUnpackCertWithIntermediates(cert *x509.Certificate, co *CheckOpt
 			fmt.Errorf("certificate does not include required embedded SCT and no detached SCT was set"),
 		}
 	}
+	if contains && co.TrustedMaterial != nil {
+		if err := verify.VerifySignedCertificateTimestamp(cert, 1, co.TrustedMaterial); err != nil {
+			return nil, err
+		}
+		return verifier, nil
+	}
 	// handle if chains has more than one chain - grab first and print message
 	if len(chains) > 1 {
 		fmt.Fprintf(os.Stderr, "**Info** Multiple valid certificate chains found. Selecting the first to verify the SCT.\n")
@@ -280,22 +291,22 @@ func ValidateAndUnpackCertWithIntermediates(cert *x509.Certificate, co *CheckOpt
 		if err := VerifyEmbeddedSCT(context.Background(), chains[0], co.CTLogPubKeys); err != nil {
 			return nil, err
 		}
-	} else {
-		chain := chains[0]
-		if len(chain) < 2 {
-			return nil, errors.New("certificate chain must contain at least a certificate and its issuer")
-		}
-		certPEM, err := cryptoutils.MarshalCertificateToPEM(chain[0])
-		if err != nil {
-			return nil, err
-		}
-		chainPEM, err := cryptoutils.MarshalCertificatesToPEM(chain[1:])
-		if err != nil {
-			return nil, err
-		}
-		if err := VerifySCT(context.Background(), certPEM, chainPEM, co.SCT, co.CTLogPubKeys); err != nil {
-			return nil, err
-		}
+		return verifier, nil
+	}
+	chain := chains[0]
+	if len(chain) < 2 {
+		return nil, errors.New("certificate chain must contain at least a certificate and its issuer")
+	}
+	certPEM, err := cryptoutils.MarshalCertificateToPEM(chain[0])
+	if err != nil {
+		return nil, err
+	}
+	chainPEM, err := cryptoutils.MarshalCertificatesToPEM(chain[1:])
+	if err != nil {
+		return nil, err
+	}
+	if err := VerifySCT(context.Background(), certPEM, chainPEM, co.SCT, co.CTLogPubKeys); err != nil {
+		return nil, err
 	}
 
 	return verifier, nil

@@ -127,6 +127,12 @@ func (c *VerifyBlobCmd) Exec(ctx context.Context, blobRef string) error {
 		return err
 	}
 
+	trustedMaterial, _ := cosign.TrustedRoot()
+	if trustedMaterial != nil && options.NOf(c.CertChain, c.CARoots, c.CAIntermediates) > 0 {
+		// trusted_root.json was found, but a cert chain was explicitly provided, so don't overrule the user's intentions.
+		trustedMaterial = nil
+	}
+
 	co := &cosign.CheckOpts{
 		CertGithubWorkflowTrigger:    c.CertGithubWorkflowTrigger,
 		CertGithubWorkflowSha:        c.CertGithubWorkflowSHA,
@@ -137,6 +143,7 @@ func (c *VerifyBlobCmd) Exec(ctx context.Context, blobRef string) error {
 		Identities:                   identities,
 		Offline:                      c.Offline,
 		IgnoreTlog:                   c.IgnoreTlog,
+		TrustedMaterial:              trustedMaterial,
 	}
 	if c.RFC3161TimestampPath != "" && !(c.TSACertChainPath != "" || c.UseSignedTimestamps) {
 		return fmt.Errorf("either TSA certificate chain path must be provided or use-signed-timestamps must be set when using RFC3161 timestamp path")
@@ -293,7 +300,7 @@ func (c *VerifyBlobCmd) Exec(ctx context.Context, blobRef string) error {
 	}
 
 	// Ignore Signed Certificate Timestamp if the flag is set or a key is provided
-	if shouldVerifySCT(c.IgnoreSCT, c.KeyRef, c.Sk) {
+	if co.TrustedMaterial == nil && shouldVerifySCT(c.IgnoreSCT, c.KeyRef, c.Sk) {
 		co.CTLogPubKeys, err = cosign.GetCTLogPubs(ctx)
 		if err != nil {
 			return fmt.Errorf("getting ctlog public keys: %w", err)

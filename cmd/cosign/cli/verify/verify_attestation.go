@@ -107,6 +107,12 @@ func (c *VerifyAttestationCommand) Exec(ctx context.Context, images []string) (e
 		return fmt.Errorf("constructing client options: %w", err)
 	}
 
+	trustedMaterial, _ := cosign.TrustedRoot()
+	if trustedMaterial != nil && options.NOf(c.CertChain, c.CARoots, c.CAIntermediates) > 0 {
+		// trusted_root.json was found, but a cert chain was explicitly provided, so don't overrule the user's intentions.
+		trustedMaterial = nil
+	}
+
 	co := &cosign.CheckOpts{
 		RegistryClientOpts:           ociremoteOpts,
 		CertGithubWorkflowTrigger:    c.CertGithubWorkflowTrigger,
@@ -119,12 +125,13 @@ func (c *VerifyAttestationCommand) Exec(ctx context.Context, images []string) (e
 		Offline:                      c.Offline,
 		IgnoreTlog:                   c.IgnoreTlog,
 		MaxWorkers:                   c.MaxWorkers,
+		TrustedMaterial:              trustedMaterial,
 	}
 	if c.CheckClaims {
 		co.ClaimVerifier = cosign.IntotoSubjectClaimVerifier
 	}
 	// Ignore Signed Certificate Timestamp if the flag is set or a key is provided
-	if shouldVerifySCT(c.IgnoreSCT, c.KeyRef, c.Sk) {
+	if co.TrustedMaterial == nil && shouldVerifySCT(c.IgnoreSCT, c.KeyRef, c.Sk) {
 		co.CTLogPubKeys, err = cosign.GetCTLogPubs(ctx)
 		if err != nil {
 			return fmt.Errorf("getting ctlog public keys: %w", err)

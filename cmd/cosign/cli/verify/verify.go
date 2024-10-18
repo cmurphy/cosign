@@ -128,6 +128,12 @@ func (c *VerifyCommand) Exec(ctx context.Context, images []string) (err error) {
 		return fmt.Errorf("constructing client options: %w", err)
 	}
 
+	trustedMaterial, _ := cosign.TrustedRoot()
+	if trustedMaterial != nil && options.NOf(c.CertChain, c.CARoots, c.CAIntermediates) > 0 {
+		// trusted_root.json was found, but a cert chain was explicitly provided, so don't overrule the user's intentions.
+		trustedMaterial = nil
+	}
+
 	co := &cosign.CheckOpts{
 		Annotations:                  c.Annotations.Annotations,
 		RegistryClientOpts:           ociremoteOpts,
@@ -144,6 +150,7 @@ func (c *VerifyCommand) Exec(ctx context.Context, images []string) (err error) {
 		IgnoreTlog:                   c.IgnoreTlog,
 		MaxWorkers:                   c.MaxWorkers,
 		ExperimentalOCI11:            c.ExperimentalOCI11,
+		TrustedMaterial:              trustedMaterial,
 	}
 	if c.CheckClaims {
 		co.ClaimVerifier = cosign.SimpleClaimVerifier
@@ -184,7 +191,7 @@ func (c *VerifyCommand) Exec(ctx context.Context, images []string) (err error) {
 	certRef := c.CertRef
 
 	// Ignore Signed Certificate Timestamp if the flag is set or a key is provided
-	if shouldVerifySCT(c.IgnoreSCT, c.KeyRef, c.Sk) {
+	if co.TrustedMaterial == nil && shouldVerifySCT(c.IgnoreSCT, c.KeyRef, c.Sk) {
 		co.CTLogPubKeys, err = cosign.GetCTLogPubs(ctx)
 		if err != nil {
 			return fmt.Errorf("getting ctlog public keys: %w", err)

@@ -400,6 +400,8 @@ func signerFromKeyRef(ctx context.Context, certPath, certChainPath, keyRef strin
 		SignerVerifier: k,
 	}
 
+	trustedMaterial, _ := cosign.TrustedRoot()
+
 	var leafCert *x509.Certificate
 
 	// Attempt to extract certificate from PKCS11 token
@@ -505,9 +507,14 @@ func signerFromKeyRef(ctx context.Context, certPath, certChainPath, keyRef strin
 		return nil, err
 	}
 	if contains {
-		pubKeys, err := cosign.GetCTLogPubs(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("getting CTLog public keys: %w", err)
+		var pubKeys any
+		if trustedMaterial != nil {
+			pubKeys = trustedMaterial.CTLogs()
+		} else {
+			pubKeys, err = cosign.GetCTLogPubs(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("getting CTLog public keys: %w", err)
+			}
 		}
 		var chain []*x509.Certificate
 		chain = append(chain, leafCert)
