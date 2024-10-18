@@ -200,13 +200,15 @@ func (c *VerifyAttestationCommand) Exec(ctx context.Context, images []string) (e
 		}
 		if c.CertChain == "" {
 			// If no certChain is passed, the Fulcio root certificate will be used
-			co.RootCerts, err = fulcio.GetRoots()
-			if err != nil {
-				return fmt.Errorf("getting Fulcio roots: %w", err)
-			}
-			co.IntermediateCerts, err = fulcio.GetIntermediates()
-			if err != nil {
-				return fmt.Errorf("getting Fulcio intermediates: %w", err)
+			if co.TrustedMaterial == nil {
+				co.RootCerts, err = fulcio.GetRoots()
+				if err != nil {
+					return fmt.Errorf("getting Fulcio roots: %w", err)
+				}
+				co.IntermediateCerts, err = fulcio.GetIntermediates()
+				if err != nil {
+					return fmt.Errorf("getting Fulcio intermediates: %w", err)
+				}
 			}
 			co.SigVerifier, err = cosign.ValidateAndUnpackCert(cert, co)
 			if err != nil {

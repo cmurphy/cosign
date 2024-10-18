@@ -253,10 +253,26 @@ func ValidateAndUnpackCertWithIntermediates(cert *x509.Certificate, co *CheckOpt
 	}
 
 	// Now verify the cert, then the signature.
-	chains, err := TrustedCert(cert, co.RootCerts, intermediateCerts)
 
+	shouldVerifyEmbeddedSCT := !co.IgnoreSCT
+	contains, err := ContainsSCT(cert.Raw)
 	if err != nil {
 		return nil, err
+	}
+	shouldVerifyEmbeddedSCT = shouldVerifyEmbeddedSCT && contains
+	// If trusted root is available and the SCT is embedded, use the verifiers from sigstore-go (preferred).
+	var chains [][]*x509.Certificate
+	if co.TrustedMaterial != nil && shouldVerifyEmbeddedSCT {
+		if err = verify.VerifyLeafCertificate(cert.NotBefore, cert, co.TrustedMaterial); err != nil {
+			return nil, err
+		}
+	} else {
+		// If the trusted root is not available, OR if the SCT is detached, use the verifiers from cosign (legacy).
+		// The certificate chains will be needed for the legacy SCT verifiers, which is why we can't use sigstore-go.
+		chains, err = TrustedCert(cert, co.RootCerts, intermediateCerts)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = CheckCertificatePolicy(cert, co)
@@ -268,21 +284,20 @@ func ValidateAndUnpackCertWithIntermediates(cert *x509.Certificate, co *CheckOpt
 	if co.IgnoreSCT {
 		return verifier, nil
 	}
-	contains, err := ContainsSCT(cert.Raw)
-	if err != nil {
-		return nil, err
-	}
 	if !contains && len(co.SCT) == 0 {
 		return nil, &VerificationFailure{
 			fmt.Errorf("certificate does not include required embedded SCT and no detached SCT was set"),
 		}
 	}
-	if contains && co.TrustedMaterial != nil {
+
+	// If trusted root is available and the SCT is embedded, use the verifiers from sigstore-go (preferred).
+	if co.TrustedMaterial != nil && contains {
 		if err := verify.VerifySignedCertificateTimestamp(cert, 1, co.TrustedMaterial); err != nil {
 			return nil, err
 		}
 		return verifier, nil
 	}
+
 	// handle if chains has more than one chain - grab first and print message
 	if len(chains) > 1 {
 		fmt.Fprintf(os.Stderr, "**Info** Multiple valid certificate chains found. Selecting the first to verify the SCT.\n")
