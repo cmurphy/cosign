@@ -66,6 +66,7 @@ import (
 	intoto_v002 "github.com/sigstore/rekor/pkg/types/intoto/v0.0.2"
 	rekord_v001 "github.com/sigstore/rekor/pkg/types/rekord/v0.0.1"
 	"github.com/sigstore/sigstore-go/pkg/root"
+	"github.com/sigstore/sigstore-go/pkg/tlog"
 	"github.com/sigstore/sigstore-go/pkg/verify"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
@@ -1086,8 +1087,21 @@ func VerifyBundle(sig oci.Signature, co *CheckOpts) (bool, error) {
 		return false, nil
 	}
 
-	if co.RekorPubKeys == nil || co.RekorPubKeys.Keys == nil {
+	if co.TrustedMaterial == nil && (co.RekorPubKeys == nil || co.RekorPubKeys.Keys == nil) {
 		return false, errors.New("no trusted rekor public keys provided")
+	}
+
+	if co.TrustedMaterial != nil {
+		payload := bundle.Payload
+		body, _ := base64.StdEncoding.DecodeString(payload.Body.(string))
+		entry, err := tlog.NewEntry(body, payload.IntegratedTime, payload.LogIndex, []byte(payload.LogID), bundle.SignedEntryTimestamp, nil)
+		if err != nil {
+			return false, fmt.Errorf("converting tlog entry: %w", err)
+		}
+		if err := tlog.VerifySET(entry, co.TrustedMaterial.RekorLogs()); err != nil {
+			return false, fmt.Errorf("verifying bundle with trusted root: %w", err)
+		}
+		return true, nil
 	}
 	// Make sure all the rekorPubKeys are ecsda.PublicKeys
 	for k, v := range co.RekorPubKeys.Keys {

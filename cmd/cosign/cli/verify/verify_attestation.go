@@ -156,11 +156,13 @@ func (c *VerifyAttestationCommand) Exec(ctx context.Context, images []string) (e
 			}
 			co.RekorClient = rekorClient
 		}
-		// This performs an online fetch of the Rekor public keys, but this is needed
-		// for verifying tlog entries (both online and offline).
-		co.RekorPubKeys, err = cosign.GetRekorPubs(ctx)
-		if err != nil {
-			return fmt.Errorf("getting Rekor public keys: %w", err)
+		if co.TrustedMaterial == nil {
+			// This performs an online fetch of the Rekor public keys, but this is needed
+			// for verifying tlog entries (both online and offline).
+			co.RekorPubKeys, err = cosign.GetRekorPubs(ctx)
+			if err != nil {
+				return fmt.Errorf("getting Rekor public keys: %w", err)
+			}
 		}
 	}
 
