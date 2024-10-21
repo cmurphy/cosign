@@ -1193,6 +1193,28 @@ func VerifyRFC3161Timestamp(sig oci.Signature, co *CheckOpts) (*timestamp.Timest
 		tsBytes = rawSig
 	}
 
+	if co.TrustedMaterial != nil {
+		for _, ca := range co.TrustedMaterial.TimestampingAuthorities() {
+			ts, err := tsaverification.VerifyTimestampResponse(ts.SignedRFC3161Timestamp, bytes.NewReader(tsBytes),
+				tsaverification.VerifyOpts{
+					TSACertificate: ca.Leaf,
+					Intermediates:  ca.Intermediates,
+					Roots:          []*x509.Certificate{ca.Root},
+				})
+			if err != nil {
+				continue
+			}
+			if !ca.ValidityPeriodStart.IsZero() && ts.Time.Before(ca.ValidityPeriodStart) {
+				continue
+			}
+			if !ca.ValidityPeriodEnd.IsZero() && ts.Time.After(ca.ValidityPeriodEnd) {
+				continue
+			}
+			return ts, nil
+		}
+		return nil, fmt.Errorf("unable to verify signed timestamps with trusted root")
+	}
+
 	return tsaverification.VerifyTimestampResponse(ts.SignedRFC3161Timestamp, bytes.NewReader(tsBytes),
 		tsaverification.VerifyOpts{
 			TSACertificate: co.TSACertificate,

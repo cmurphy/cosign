@@ -128,7 +128,7 @@ func (c *VerifyBlobCmd) Exec(ctx context.Context, blobRef string) error {
 	}
 
 	trustedMaterial, _ := cosign.TrustedRoot()
-	if trustedMaterial != nil && options.NOf(c.CertChain, c.CARoots, c.CAIntermediates) > 0 {
+	if trustedMaterial != nil && options.NOf(c.CertChain, c.CARoots, c.CAIntermediates, c.TSACertChainPath) > 0 {
 		// trusted_root.json was found, but a cert chain was explicitly provided, so don't overrule the user's intentions.
 		trustedMaterial = nil
 	}
