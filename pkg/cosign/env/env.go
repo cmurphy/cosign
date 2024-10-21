@@ -59,9 +59,11 @@ const (
 	VariableSigstoreRekorPublicKey     Variable = "SIGSTORE_REKOR_PUBLIC_KEY"
 	VariableSigstoreIDToken            Variable = "SIGSTORE_ID_TOKEN" //nolint:gosec
 	VariableSigstoreTSACertificateFile Variable = "SIGSTORE_TSA_CERTIFICATE_FILE"
-	VariableTUFMirror                  Variable = "SIGSTORE_TUF_MIRROR"
-	VariableTUFRootDir                 Variable = "SIGSTORE_TUF_ROOT"
-	VariableTUFRootJSON                Variable = "SIGSTORE_TUF_ROOT_JSON"
+
+	// TUF environment variables
+	VariableTUFRootDir  Variable = "TUF_ROOT"
+	VariableTUFMirror   Variable = "TUF_MIRROR"
+	VariableTUFRootJSON Variable = "TUF_ROOT_JSON"
 
 	// Other external environment variables
 	VariableGitHubHost                Variable = "GITHUB_HOST"
