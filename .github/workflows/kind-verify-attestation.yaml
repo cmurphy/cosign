@@ -71,6 +71,10 @@ jobs:
       run: |
         make cosign
 
+    - name: Check cache
+      run: |
+        tree $HOME/.sigstore || true
+
     - name: Install cluster + sigstore
       uses: sigstore/scaffolding/actions/setup@main
       with:
@@ -99,8 +103,7 @@ jobs:
       run: |
         TUF_MIRROR=$(kubectl -n tuf-system get ksvc tuf -ojsonpath='{.status.url}')
         ./cosign initialize --mirror $TUF_MIRROR --root ./root.json
-        ls $HOME/.sigstore/root
-        cat $HOME/.sigstore/root/remote.json
+        tree $HOME/.sigstore/root
 
     - name: Initialize with custom TUF root pointing to local filesystem
       if: ${{ matrix.tuf-root == 'air-gap' }}
@@ -115,7 +118,8 @@ jobs:
 
     - name: Sign demoimage with cosign
       run: |
-        echo $TUF_MIRROR
+        unset TUF_MIRROR
+        cat $HOME/.sigstore/root/*/targets/trusted_root.json || true
         ./cosign sign --rekor-url ${REKOR_URL} --fulcio-url ${FULCIO_URL} --yes --allow-insecure-registry ${demoimage} --identity-token ${OIDC_TOKEN}
 
     - name: Create attestation for it
