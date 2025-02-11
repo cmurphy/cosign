@@ -107,6 +107,8 @@ race conditions or (worse) malicious tampering.
 				return err
 			}
 
+			fmt.Println("**** in cosign sign ****")
+			fmt.Println("running cosign.TrustedRoot")
 			trustedMaterial, err := cosign.TrustedRoot()
 			if err != nil {
 				ui.Warnf(context.Background(), "Could not fetch trusted_root.json from the TUF repository. Continuing with individual targets. Error from TUF: %v", err)

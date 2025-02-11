@@ -36,6 +36,7 @@ func NewSigner(ctx context.Context, ko options.KeyOpts, signer signature.SignerV
 	}
 
 	if ko.TrustedMaterial != nil && len(fs.SCT) == 0 {
+		fmt.Println("**** verifying embedded SCT with trusted root****")
 		// Detached SCTs cannot be verified with this function.
 		chain, err := cryptoutils.UnmarshalCertificatesFromPEM(fs.Chain)
 		if err != nil {
@@ -45,6 +46,9 @@ func NewSigner(ctx context.Context, ko options.KeyOpts, signer signature.SignerV
 		if err != nil || len(certs) < 1 {
 			return nil, fmt.Errorf("unmarshalling cert from PEM for SCT verification: %w", err)
 		}
+		fmt.Printf(`*********
+		%+v
+		***********\n`, *certs[0])
 		chain = append(certs, chain...)
 		chains := make([][]*x509.Certificate, 1)
 		chains[0] = chain

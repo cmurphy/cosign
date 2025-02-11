@@ -47,6 +47,7 @@ func TrustedRoot() (root.TrustedMaterial, error) {
 func setTUFOpts() (*tuf.Options, error) {
 	opts := tuf.DefaultOptions()
 	if tufCacheDir := env.Getenv(env.VariableTUFRootDir); tufCacheDir != "" { //nolint:forbidigo
+		fmt.Printf("opts.CachePath = %s\n", tufCacheDir)
 		opts.CachePath = tufCacheDir
 	}
 	err := setTUFMirror(opts)
@@ -55,6 +56,7 @@ func setTUFOpts() (*tuf.Options, error) {
 	}
 	if opts.RepositoryBaseURL == tuf.DefaultMirror {
 		// Using the default mirror, so just use the embedded root.json.
+		fmt.Println("using default mirror")
 		return opts, nil
 	}
 	err = setTUFRootJSON(opts)
@@ -66,6 +68,7 @@ func setTUFOpts() (*tuf.Options, error) {
 
 func setTUFMirror(opts *tuf.Options) error {
 	if tufMirror := env.Getenv(env.VariableTUFMirror); tufMirror != "" { //nolint:forbidigo
+		fmt.Printf("opts.RepositoryBaseURL = %s\n", tufMirror)
 		opts.RepositoryBaseURL = tufMirror
 		return nil
 	}
@@ -73,6 +76,7 @@ func setTUFMirror(opts *tuf.Options) error {
 	cachedRemote := filepath.Join(opts.CachePath, "remote.json")
 	remoteBytes, err := os.ReadFile(cachedRemote)
 	if errors.Is(err, os.ErrNotExist) {
+		fmt.Println("no remote.json found, using default tuf mirror")
 		return nil // `cosign initialize` wasn't run, so use the default
 	}
 	if err != nil {
@@ -84,6 +88,7 @@ func setTUFMirror(opts *tuf.Options) error {
 		return fmt.Errorf("error unmarshalling remote.json: %w", err)
 	}
 	opts.RepositoryBaseURL = remote["mirror"]
+	fmt.Printf("opts.RepositoryBaseURL = %s\n", opts.RepositoryBaseURL)
 	return nil
 }
 
@@ -94,6 +99,7 @@ func setTUFRootJSON(opts *tuf.Options) error {
 		if err != nil {
 			return fmt.Errorf("error reading root.json given by COSIGN_TUF_ROOT_JSON")
 		}
+		fmt.Printf("(from env) opts.Root = %s\n", string(rootJSONBytes))
 		opts.Root = rootJSONBytes
 		return nil
 	}
@@ -104,6 +110,7 @@ func setTUFRootJSON(opts *tuf.Options) error {
 		if err != nil {
 			return fmt.Errorf("error reading cached root.json")
 		}
+		fmt.Printf("(from cache) opts.Root = %s\n", string(rootJSONBytes))
 		opts.Root = rootJSONBytes
 		return nil
 	}
