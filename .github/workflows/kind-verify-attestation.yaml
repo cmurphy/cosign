@@ -99,6 +99,8 @@ jobs:
       run: |
         TUF_MIRROR=$(kubectl -n tuf-system get ksvc tuf -ojsonpath='{.status.url}')
         ./cosign initialize --mirror $TUF_MIRROR --root ./root.json
+        ls $HOME/.sigstore/root
+        cat $HOME/.sigstore/root/remote.json
 
     - name: Initialize with custom TUF root pointing to local filesystem
       if: ${{ matrix.tuf-root == 'air-gap' }}
@@ -113,6 +115,7 @@ jobs:
 
     - name: Sign demoimage with cosign
       run: |
+        echo $TUF_MIRROR
         ./cosign sign --rekor-url ${REKOR_URL} --fulcio-url ${FULCIO_URL} --yes --allow-insecure-registry ${demoimage} --identity-token ${OIDC_TOKEN}
 
     - name: Create attestation for it
