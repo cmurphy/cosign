@@ -61,9 +61,9 @@ const (
 	VariableSigstoreTSACertificateFile Variable = "SIGSTORE_TSA_CERTIFICATE_FILE"
 
 	// TUF environment variables
-	VariableTUFRootDir  Variable = "TUF_ROOT"
-	VariableTUFMirror   Variable = "TUF_MIRROR"
-	VariableTUFRootJSON Variable = "TUF_ROOT_JSON"
+	VariableTUFRootDir  Variable = "TUF_ROOT" // used by sigstore/sigstore
+	VariableTUFMirror   Variable = "COSIGN_TUF_MIRROR"
+	VariableTUFRootJSON Variable = "COSIGN_TUF_ROOT_JSON"
 
 	// Other external environment variables
 	VariableGitHubHost                Variable = "GITHUB_HOST"
@@ -151,7 +151,7 @@ var (
 			External:    true,
 		},
 		VariableTUFMirror: {
-			Description: "URL of the TUF mirror. Use with TUF_ROOT_JSON to refresh TUF metadata during signing and verification commands. Setting this will cause cosign to attempt to use trusted_root.json if available and will ignore custom TUF metadata.",
+			Description: "URL of the TUF mirror. Use with COSIGN_TUF_ROOT_JSON to refresh TUF metadata during signing and verification commands. Setting this will cause cosign to attempt to use trusted_root.json if available and will ignore custom TUF metadata.",
 			Expects:     "URL of the TUF mirror",
 			Sensitive:   false,
 			External:    true,
@@ -163,7 +163,7 @@ var (
 			External:    true,
 		},
 		VariableTUFRootJSON: {
-			Description: "path to the TUF root.json file used to initialize and update a local TUF repository. Use with TUF_MIRROR to refresh TUF metadata during signing and verification commands. Setting this will cause cosign to attempt to use trusted_root.json if available and will ignore custom TUF metadata.",
+			Description: "path to the TUF root.json file used to initialize and update a local TUF repository. Use with COSIGN_TUF_MIRROR to refresh TUF metadata during signing and verification commands. Setting this will cause cosign to attempt to use trusted_root.json if available and will ignore custom TUF metadata.",
 			Expects:     "path to root.json",
 			Sensitive:   false,
 			External:    true,

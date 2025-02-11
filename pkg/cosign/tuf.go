@@ -40,7 +40,7 @@ func TrustedRoot() (root.TrustedMaterial, error) {
 
 // setTUFOpts sets the TUF cache directory, the mirror URL, and the root.json in the TUF options.
 // The cache directory is provided by the user as an environment variable TUF_ROOT, or the default $HOME/.sigstore/root is used.
-// The mirror URL is provided by the user as an environment variable TUF_MIRROR. If not overridden by the user, the value set during `cosign initialize` in remote.json in the cache directory is used.
+// The mirror URL is provided by the user as an environment variable COSIGN_TUF_MIRROR. If not overridden by the user, the value set during `cosign initialize` in remote.json in the cache directory is used.
 // If the mirror happens to be the sigstore.dev production TUF CDN, the options are returned since it is safe to use all the default settings.
 // If the mirror is a custom mirror, we try to find a cached root.json. We must not use the default embedded root.json.
 // If the TUF options cannot be found through these steps, the caller should not try to use this TUF client to fetch the trusted root and should instead fall back to the legacy TUF client to fetch individual trusted keys.
@@ -88,11 +88,11 @@ func setTUFMirror(opts *tuf.Options) error {
 }
 
 func setTUFRootJSON(opts *tuf.Options) error {
-	// TUF root set by TUF_ROOT_JSON
+	// TUF root set by COSIGN_TUF_ROOT_JSON
 	if tufRootJSON := env.Getenv(env.VariableTUFRootJSON); tufRootJSON != "" { //nolint:forbidigo
 		rootJSONBytes, err := os.ReadFile(tufRootJSON)
 		if err != nil {
-			return fmt.Errorf("error reading root.json given by TUF_ROOT_JSON")
+			return fmt.Errorf("error reading root.json given by COSIGN_TUF_ROOT_JSON")
 		}
 		opts.Root = rootJSONBytes
 		return nil
