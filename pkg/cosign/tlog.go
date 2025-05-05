@@ -453,13 +453,6 @@ func VerifyTLogEntryOffline(ctx context.Context, e *models.LogEntryAnon, rekorPu
 		return errors.New("no trusted rekor public keys provided")
 	}
 
-	// Make sure all the rekorPubKeys are ecsda.PublicKeys
-	for k, v := range rekorPubKeys.Keys {
-		if _, ok := v.PubKey.(*ecdsa.PublicKey); !ok {
-			return fmt.Errorf("rekor Public key for LogID %s is not type ecdsa.PublicKey", k)
-		}
-	}
-
 	hashes := [][]byte{}
 	for _, h := range e.Verification.InclusionProof.Hashes {
 		hb, _ := hex.DecodeString(h)
@@ -502,6 +495,13 @@ func VerifyTLogEntryOffline(ctx context.Context, e *models.LogEntryAnon, rekorPu
 		IntegratedTime: *e.IntegratedTime,
 		LogIndex:       *e.LogIndex,
 		LogID:          *e.LogID,
+	}
+
+	// Make sure all the rekorPubKeys are ecsda.PublicKeys
+	for k, v := range rekorPubKeys.Keys {
+		if _, ok := v.PubKey.(*ecdsa.PublicKey); !ok {
+			return fmt.Errorf("rekor Public key for LogID %s is not type ecdsa.PublicKey", k)
+		}
 	}
 
 	pubKey, ok := rekorPubKeys.Keys[payload.LogID]
