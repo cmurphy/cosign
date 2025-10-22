@@ -158,6 +158,12 @@ jobs:
       with:
         version: ${{ env.SCAFFOLDING_RELEASE_VERSION }}
 
+    #- name: Update root.json
+    #  run: |
+    #    kubectl -n tuf-system get secrets tuf-root -ojsonpath='{.data.root}' | base64 -d > ./root.json
+    #    pwd
+    #    cat root.json
+
     - name: Setup local insecure registry
       run: |
         # Create a self-signed SSL cert
@@ -181,12 +187,13 @@ jobs:
         # '*.local' hostnames.
         INSECURE_REGISTRY_NAME: insecure-registry.notlocal
         INSECURE_REGISTRY_PORT: 5001
-        TUF_ROOT_JSON: ./root.json
 
     - name: Run Insecure Registry Tests
-      run: go test -tags=e2e,registry -v ./test/...
+      run: |
+        go test -tags=e2e,registry -v ./test/...
       env:
         COSIGN_TEST_REPO: insecure-registry.notlocal:5001
+        TUF_ROOT_JSON: ${{ github.workspace }}/root.json
 
     - name: Setup local insecure OCI 1.1 registry
       run: |
@@ -230,7 +237,6 @@ jobs:
         # '*.local' hostnames.
         INSECURE_OCI_REGISTRY_NAME: insecure-oci-registry.notlocal
         INSECURE_OCI_REGISTRY_PORT: 5002
-        TUF_ROOT_JSON: ./root.json
 
 
     - name: Run Insecure OCI 1.1 Registry Tests
@@ -238,6 +244,7 @@ jobs:
       env:
         OCI11: yes
         COSIGN_TEST_REPO: insecure-oci-registry.notlocal:5002
+        TUF_ROOT_JSON: ${{ github.workspace }}/root.json
 
     - name: Set up local HTTP registry
       run: |
@@ -248,12 +255,12 @@ jobs:
       env:
         HTTP_REGISTRY_NAME: http-registry.notlocal
         HTTP_REGISTRY_PORT: 5003
-        TUF_ROOT_JSON: ./root.json
 
     - name: Run HTTP registry tests
       run: go test -tags=e2e,registry -v ./test/...
       env:
         COSIGN_TEST_REPO: http-registry.notlocal:5003
+        TUF_ROOT_JSON: ${{ github.workspace }}/root.json
 
     - name: Collect diagnostics
       if: ${{ failure() }}
