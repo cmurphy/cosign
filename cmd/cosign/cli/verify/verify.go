@@ -109,6 +109,9 @@ func (c *VerifyCommand) Exec(ctx context.Context, images []string) (err error) {
 	if err != nil {
 		return fmt.Errorf("constructing client options: %w", err)
 	}
+	if c.AllowHTTPRegistry || c.AllowInsecure {
+		c.NameOptions = append(c.NameOptions, name.Insecure)
+	}
 
 	co := &cosign.CheckOpts{
 		Annotations:                  c.Annotations.Annotations,
