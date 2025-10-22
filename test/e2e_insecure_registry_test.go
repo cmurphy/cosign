@@ -27,10 +27,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/sigstore/cosign/v3/cmd/cosign/cli/initialize"
 	"github.com/sigstore/cosign/v3/cmd/cosign/cli/options"
 	"github.com/sigstore/cosign/v3/cmd/cosign/cli/sign"
 	cliverify "github.com/sigstore/cosign/v3/cmd/cosign/cli/verify"
-	"github.com/sigstore/cosign/v3/pkg/cosign/env"
+	"github.com/sigstore/cosign/v3/pkg/cosign"
 	ociremote "github.com/sigstore/cosign/v3/pkg/oci/remote"
 )
 
@@ -52,11 +53,18 @@ func TestInsecureRegistry(t *testing.T) {
 	defer cleanup()
 
 	_, privKey, pubKey := keypair(t, td)
+	_ = pubKey
 
 	useOCI11 := os.Getenv("oci11Var") != ""
 
 	rekorURL := os.Getenv(rekorURLVar)
-	must(downloadAndSetEnv(t, rekorURL+"/api/v1/log/publicKey", env.VariableSigstoreRekorPublicKey.String(), td), t)
+
+	ctx := context.Background()
+	tufLocalCache := t.TempDir()
+	t.Setenv("TUF_ROOT", tufLocalCache)
+	rootPath := os.Getenv("TUF_ROOT_JSON")
+	mirror := os.Getenv("TUF_MIRROR")
+	must(initialize.DoInitialize(ctx, rootPath, mirror), t)
 
 	ko := options.KeyOpts{
 		KeyRef:           privKey,
@@ -64,13 +72,19 @@ func TestInsecureRegistry(t *testing.T) {
 		RekorURL:         rekorURL,
 		SkipConfirmation: true,
 	}
+	trustedMaterial, err := cosign.TrustedRoot()
+	must(err, t)
+	ko.TrustedMaterial = trustedMaterial
+
+	// Sign without bundle format
 	so := options.SignOptions{
 		Upload:     true,
 		TlogUpload: true,
 	}
 	mustErr(sign.SignCmd(ro, ko, so, []string{imgName}), t)
 	so.Registry = options.RegistryOptions{
-		AllowInsecure: true,
+		AllowInsecure:     true,
+		AllowHTTPRegistry: true,
 	}
 	if useOCI11 {
 		so.RegistryExperimental = options.RegistryExperimentalOptions{
@@ -83,17 +97,24 @@ func TestInsecureRegistry(t *testing.T) {
 		KeyRef:      pubKey,
 		CheckClaims: true,
 		RegistryOptions: options.RegistryOptions{
-			AllowInsecure: true,
+			AllowInsecure:     true,
+			AllowHTTPRegistry: true,
 		},
 	}
 	if useOCI11 {
 		cmd.ExperimentalOCI11 = true
 	}
 	must(cmd.Exec(context.Background(), []string{imgName}), t)
+
+	// Sign with new bundle format
+	so.NewBundleFormat = true
+	must(sign.SignCmd(ro, ko, so, []string{imgName}), t)
+	cmd.NewBundleFormat = true
+	must(cmd.Exec(context.Background(), []string{imgName}), t)
 }
 
 func makeImageIndexWithInsecureRegistry(t *testing.T, n string) func() {
-	ref, err := name.ParseReference(n, name.WeakValidation)
+	ref, err := name.ParseReference(n, name.WeakValidation, name.Insecure)
 	if err != nil {
 		t.Fatal(err)
 	}
